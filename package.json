@@ -1,0 +1,19 @@
+{
+  "name": "ai-visualizer",
+  "version": "1.0.0",
+  "description": "Chat-to-Visualization App with real-time explanations",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd backend && npm run dev",
+    "client": "cd frontend && npm start",
+    "build": "cd frontend && npm run build",
+    "install-all": "npm install && cd frontend && npm install && cd ../backend && npm install"
+  },
+  "keywords": ["ai", "visualization", "chat", "react", "nodejs"],
+  "author": "Devank",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
