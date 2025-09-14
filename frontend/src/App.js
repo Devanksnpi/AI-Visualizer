@@ -30,7 +30,8 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
 
   // SSE hook for real-time updates
-  const { data: sseData } = useSSE('http://localhost:5000/api/stream');
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+  const { data: sseData } = useSSE(`${API_BASE_URL}/stream`);
 
   // Load chat sessions on component mount
   useEffect(() => {
