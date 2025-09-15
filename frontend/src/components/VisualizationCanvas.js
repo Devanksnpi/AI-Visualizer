@@ -14,6 +14,9 @@ const CanvasContainer = styled.div`
   border-radius: 16px;
   margin: 16px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
 const Canvas = styled.canvas`
@@ -120,6 +123,41 @@ const VisualizationCanvas = ({ visualization, isPlaying, currentTime, onTimeUpda
     };
   }, [isPlaying, visualization, currentTime, onTimeUpdate, onAnimationComplete]);
 
+  const calculateBounds = (layers, canvasRect) => {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    layers.forEach(layer => {
+      if (!layer || !layer.props) return;
+      const { x, y, width = 0, height = 0, r = 0, rx = 0, ry = 0 } = layer.props;
+      
+      if (x !== undefined) {
+        minX = Math.min(minX, x - r - rx);
+        maxX = Math.max(maxX, x + r + rx);
+      }
+      if (y !== undefined) {
+        minY = Math.min(minY, y - r - ry);
+        maxY = Math.max(maxY, y + r + ry);
+      }
+      if (width > 0) {
+        maxX = Math.max(maxX, (x || 0) + width);
+      }
+      if (height > 0) {
+        maxY = Math.max(maxY, (y || 0) + height);
+      }
+    });
+    
+    // Default bounds if no elements found
+    if (minX === Infinity) {
+      minX = 0; minY = 0; maxX = canvasRect.width; maxY = canvasRect.height;
+    }
+    
+    return {
+      minX, minY, maxX, maxY,
+      width: maxX - minX,
+      height: maxY - minY
+    };
+  };
+
   useEffect(() => {
     if (!visualization) return;
 
@@ -134,17 +172,27 @@ const VisualizationCanvas = ({ visualization, isPlaying, currentTime, onTimeUpda
 
     // Draw each layer
     if (visualization && visualization.layers && Array.isArray(visualization.layers)) {
+      // Calculate the bounding box of all elements to center them
+      const bounds = calculateBounds(visualization.layers, rect);
+      const offsetX = (rect.width - bounds.width) / 2 - bounds.minX;
+      const offsetY = (rect.height - bounds.height) / 2 - bounds.minY;
+      
       visualization.layers.forEach(layer => {
-        drawLayer(ctx, layer, animationTime, rect);
+        drawLayer(ctx, layer, animationTime, rect, { offsetX, offsetY });
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visualization, animationTime]);
 
-  const drawLayer = (ctx, layer, time, canvasRect) => {
+  const drawLayer = (ctx, layer, time, canvasRect, offset = { offsetX: 0, offsetY: 0 }) => {
     if (!layer) return;
     
     const { type, props, animations } = layer;
+    const { offsetX, offsetY } = offset;
+    
+    // Calculate canvas center for better positioning
+    const centerX = canvasRect.width / 2;
+    const centerY = canvasRect.height / 2;
     
     // Apply animations
     let animatedProps = { ...(props || {}) };
@@ -152,8 +200,8 @@ const VisualizationCanvas = ({ visualization, isPlaying, currentTime, onTimeUpda
       animations.forEach(animation => {
       if (animation.property === 'orbit') {
         const angle = (time / animation.duration) * 2 * Math.PI;
-        animatedProps.x = animation.centerX + Math.cos(angle) * animation.radius;
-        animatedProps.y = animation.centerY + Math.sin(angle) * animation.radius;
+        animatedProps.x = (animation.centerX || centerX) + Math.cos(angle) * animation.radius;
+        animatedProps.y = (animation.centerY || centerY) + Math.sin(angle) * animation.radius;
       } else {
         // For other properties, use time-based interpolation
         const startTime = animation.start || 0;
@@ -167,6 +215,14 @@ const VisualizationCanvas = ({ visualization, isPlaying, currentTime, onTimeUpda
         }
       }
       });
+    }
+    
+    // Apply centering offset
+    if (animatedProps.x !== undefined) {
+      animatedProps.x += offsetX;
+    }
+    if (animatedProps.y !== undefined) {
+      animatedProps.y += offsetY;
     }
 
     // Draw based on type
